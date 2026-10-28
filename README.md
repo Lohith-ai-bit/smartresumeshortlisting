@@ -80,14 +80,28 @@ http://localhost:5000/job/1
 
 ---
 
+## ⚡ Deploy to Vercel
+
+This repository is pre-configured for zero-friction deployment on **Vercel** serverless Python:
+1. Fork or push this repository to your GitHub account.
+2. Go to [Vercel](https://vercel.com/) and click **Add New Project**.
+3. Import the `smartresumeshortlisting` repository.
+4. Keep the default settings and click **Deploy**.
+5. Vercel automatically builds using `api/index.py` and `vercel.json`.
+
+---
+
 ## 📁 Project Structure
 
 ```
 smartresumeshortlisting/
+├── api/
+│   └── index.py            # Vercel serverless entrypoint
 ├── app.py                  # Main Flask application & routing logic
 ├── resume_processor.py     # NLP parsing, skill extraction & scoring engine
 ├── run_demo.py             # Script to populate demo job & sample resumes
 ├── requirements.txt        # Python package dependencies
+├── vercel.json             # Vercel routing configuration
 ├── .gitignore              # Files and folders excluded from version control
 ├── static/
 │   └── style.css           # Custom styling and animations

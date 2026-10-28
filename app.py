@@ -20,11 +20,20 @@ from resume_processor import parse_resume, score_resumes, SKILL_DB
 # Flask App Configuration
 # ============================================================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-UPLOAD_FOLDER = os.path.join(BASE_DIR, 'uploads')
-DB_PATH = os.path.join(BASE_DIR, 'resume_app.db')
+
+# Support serverless read-only filesystems (like Vercel where only /tmp is writable)
+IS_VERCEL = bool(os.environ.get('VERCEL'))
+DATA_DIR = '/tmp' if IS_VERCEL else BASE_DIR
+
+UPLOAD_FOLDER = os.path.join(DATA_DIR, 'uploads')
+DB_PATH = os.path.join(DATA_DIR, 'resume_app.db')
 ALLOWED_EXTENSIONS = {'pdf', 'docx', 'doc', 'txt'}
 
-app = Flask(__name__)
+app = Flask(
+    __name__,
+    template_folder=os.path.join(BASE_DIR, 'templates'),
+    static_folder=os.path.join(BASE_DIR, 'static')
+)
 app.config['SECRET_KEY'] = 'smart-resume-shortlisting-2024-secret-key'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
@@ -87,6 +96,39 @@ def init_db():
     
     conn.commit()
     conn.close()
+
+
+def seed_demo_if_needed():
+    """Seed a demo job if the database is currently empty"""
+    try:
+        conn = get_db()
+        job_count = conn.execute("SELECT COUNT(*) FROM jobs").fetchone()[0]
+        if job_count == 0:
+            from resume_processor import extract_skills
+            demo_jd = ("We are looking for a Python Developer with experience in Natural Language Processing. "
+                       "The ideal candidate should have strong skills in Python, Machine Learning, NLP, TensorFlow or PyTorch, "
+                       "scikit-learn, pandas, and Flask/Django. Experience with SQL databases (PostgreSQL/MySQL), "
+                       "Git version control, and REST API development is required. B.Tech/B.E in Computer Science "
+                       "or related field with minimum 7 CGPA. Freshers with relevant internships/projects in NLP "
+                       "are welcome. Knowledge of spaCy, NLTK, TF-IDF, cosine similarity, word embeddings (Word2Vec/BERT), "
+                       "Deep Learning and data visualization is a plus.")
+            required_skills = extract_skills(demo_jd)
+            c = conn.cursor()
+            c.execute('''INSERT INTO jobs (title, description, required_skills, min_cgpa, min_experience)
+                         VALUES (?, ?, ?, ?, ?)''',
+                      ('Python Developer / NLP Engineer (Demo)', demo_jd, json.dumps(required_skills), 7.0, 0))
+            conn.commit()
+        conn.close()
+    except Exception:
+        pass
+
+
+# Automatically ensure DB schema & demo data exist on module import (needed for serverless)
+try:
+    init_db()
+    seed_demo_if_needed()
+except Exception as _e:
+    pass
 
 
 # ============================================================
