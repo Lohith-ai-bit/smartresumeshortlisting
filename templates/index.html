@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Smart Resume Shortlisting{% endblock %}
+
+{% block content %}
+<!-- Hero -->
+<section class="hero">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <h1><i class="fas fa-brain me-2"></i>AI-Powered Resume Screening</h1>
+                <p class="lead mb-0">
+                    Automatically shortlist candidates using NLP, TF-IDF vectorization, 
+                    and cosine similarity. Upload job descriptions and resumes — 
+                    get instant ranked results with detailed skill matching.
+                </p>
+            </div>
+            <div class="col-lg-4 text-lg-end mt-3 mt-lg-0">
+                <a href="{{ url_for('create_job') }}" class="btn btn-light btn-lg px-4">
+                    <i class="fas fa-plus me-2"></i>Create New Job
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<div class="container">
+    <!-- How it works -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h4 class="mb-3"><i class="fas fa-cogs me-2 text-primary"></i>How It Works</h4>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card h-100 text-center p-3">
+                <div class="card-body">
+                    <div class="text-primary mb-2"><i class="fas fa-briefcase fa-2x"></i></div>
+                    <h6>1. Create Job</h6>
+                    <p class="small text-muted mb-0">Enter job title and description with required skills.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card h-100 text-center p-3">
+                <div class="card-body">
+                    <div class="text-primary mb-2"><i class="fas fa-file-upload fa-2x"></i></div>
+                    <h6>2. Upload Resumes</h6>
+                    <p class="small text-muted mb-0">Bulk upload PDF/DOCX resumes — unlimited candidates.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card h-100 text-center p-3">
+                <div class="card-body">
+                    <div class="text-primary mb-2"><i class="fas fa-cogs fa-2x"></i></div>
+                    <h6>3. NLP Processing</h6>
+                    <p class="small text-muted mb-0">Text extraction, skill NER, TF-IDF, similarity scoring.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card h-100 text-center p-3">
+                <div class="card-body">
+                    <div class="text-success mb-2"><i class="fas fa-trophy fa-2x"></i></div>
+                    <h6>4. Get Results</h6>
+                    <p class="small text-muted mb-0">Ranked candidates with skill gaps and scores.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Jobs List -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0"><i class="fas fa-folder-open me-2 text-primary"></i>Job Postings</h4>
+        <a href="{{ url_for('create_job') }}" class="btn btn-primary btn-sm">
+            <i class="fas fa-plus me-1"></i>New Job
+        </a>
+    </div>
+
+    {% if jobs %}
+    <div class="row">
+        {% for job in jobs %}
+        <div class="col-lg-6 col-xl-4 mb-4 fade-in">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h5 class="card-title text-truncate mb-0">{{ job.title }}</h5>
+                        <span class="badge bg-primary rounded-pill">{{ job.resume_count }} {{ 'resume' if job.resume_count == 1 else 'resumes' }}</span>
+                    </div>
+                    <p class="text-muted small mb-3">
+                        <i class="far fa-calendar me-1"></i>{{ job.created_at.split(' ')[0] if job.created_at else '' }}
+                    </p>
+                    <p class="card-text small text-secondary mb-3" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                        {{ job.description[:150] }}{% if job.description|length > 150 %}...{% endif %}
+                    </p>
+                    
+                    {% if job.top_candidate %}
+                    <div class="alert alert-success py-2 px-3 mb-3 small">
+                        <i class="fas fa-star me-1"></i>
+                        <strong>Top Match:</strong> {{ job.top_candidate.candidate_name }}
+                        <span class="badge bg-success ms-1">{{ job.top_candidate.total_score }}%</span>
+                    </div>
+                    {% endif %}
+
+                    <div class="d-flex gap-2">
+                        <a href="{{ url_for('job_detail', job_id=job.id) }}" class="btn btn-primary btn-sm flex-fill">
+                            <i class="fas fa-chart-bar me-1"></i>View Results
+                        </a>
+                        <button type="button" class="btn btn-outline-danger btn-sm" 
+                                onclick="confirmDelete({{ job.id }}, '{{ job.title|replace("'","\\'") }}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="card">
+        <div class="empty-state">
+            <i class="fas fa-briefcase"></i>
+            <h5>No job postings yet</h5>
+            <p class="mb-3">Create your first job to start screening resumes</p>
+            <a href="{{ url_for('create_job') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>Create Job
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-exclamation-triangle text-danger me-2"></i>Delete Job</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong id="deleteJobTitle"></strong>?</p>
+                <p class="text-danger small mb-0"><i class="fas fa-warning me-1"></i>This will also delete all uploaded resumes for this job. This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="POST" style="display:inline;">
+                    <button type="submit" class="btn btn-danger"><i class="fas fa-trash me-1"></i>Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function confirmDelete(jobId, jobTitle) {
+    document.getElementById('deleteJobTitle').textContent = jobTitle;
+    document.getElementById('deleteForm').action = '/job/' + jobId + '/delete';
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+</script>
+{% endblock %}

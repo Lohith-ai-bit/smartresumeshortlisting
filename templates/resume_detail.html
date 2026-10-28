@@ -1,0 +1,304 @@
+{% extends "base.html" %}
+
+{% block title %}{{ resume.candidate_name }} - Resume Details{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('job_detail', job_id=job.id) }}">{{ job.title }}</a></li>
+            <li class="breadcrumb-item active">{{ resume.candidate_name }}</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <!-- Left Column: Profile -->
+        <div class="col-lg-4 mb-4">
+            <!-- Score Circle -->
+            <div class="card text-center mb-4">
+                <div class="card-body">
+                    <div class="position-relative d-inline-block mb-3">
+                        <svg width="140" height="140" viewBox="0 0 140 140">
+                            <circle cx="70" cy="70" r="60" fill="none" stroke="#e5e7eb" stroke-width="10"/>
+                            <circle cx="70" cy="70" r="60" fill="none" 
+                                stroke="{% if resume.total_score >= 70 %}#059669{% elif resume.total_score >= 50 %}#2563eb{% elif resume.total_score >= 35 %}#d97706{% else %}#dc2626{% endif %}"
+                                stroke-width="10" stroke-linecap="round"
+                                stroke-dasharray="{{ 377 * resume.total_score / 100 }} 377"
+                                transform="rotate(-90 70 70)"/>
+                        </svg>
+                        <div class="position-absolute top-50 start-50 translate-middle">
+                            <div class="fw-bold fs-1">{{ resume.total_score }}</div>
+                            <div class="text-muted small">/ 100</div>
+                        </div>
+                    </div>
+                    <h5 class="mb-1">{{ resume.candidate_name }}</h5>
+                    <p class="text-muted mb-2">Rank #{{ resume.rank }}</p>
+                    {% if resume.total_score >= 60 %}
+                    <span class="badge bg-success fs-6"><i class="fas fa-star me-1"></i>Recommended for Shortlist</span>
+                    {% else %}
+                    <span class="badge bg-secondary fs-6"><i class="fas fa-times me-1"></i>Below Threshold</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Contact Info -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-address-card me-2 text-primary"></i>Contact Information</h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="score-detail-item px-3">
+                        <span><i class="fas fa-envelope text-muted me-2"></i>Email</span>
+                        <span class="small">{{ resume.email or 'Not found' }}</span>
+                    </div>
+                    <div class="score-detail-item px-3">
+                        <span><i class="fas fa-phone text-muted me-2"></i>Phone</span>
+                        <span class="small">{{ resume.phone or 'Not found' }}</span>
+                    </div>
+                    <div class="score-detail-item px-3">
+                        <span><i class="fas fa-map-marker-alt text-muted me-2"></i>Location</span>
+                        <span class="small">{{ resume.location or 'Not found' }}</span>
+                    </div>
+                    <div class="score-detail-item px-3">
+                        <span><i class="fas fa-file text-muted me-2"></i>File</span>
+                        <span class="small text-truncate" style="max-width:180px;" title="{{ resume.filename }}">{{ resume.filename }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Score Breakdown -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-chart-pie me-2 text-primary"></i>Score Breakdown</h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="px-3 pt-3">
+                        <!-- Skills -->
+                        <div class="mb-2">
+                            <div class="d-flex justify-content-between small mb-1">
+                                <span>Skills Match (60%)</span>
+                                <span class="fw-bold">{{ resume.skill_score }}%</span>
+                            </div>
+                            <div class="score-bar">
+                                <div class="score-bar-fill" style="width:{{ resume.skill_score }}%; background:#059669;"></div>
+                            </div>
+                        </div>
+                        <!-- CGPA -->
+                        <div class="mb-2">
+                            <div class="d-flex justify-content-between small mb-1">
+                                <span>CGPA (15%)</span>
+                                <span class="fw-bold">{{ resume.cgpa_score }}%</span>
+                            </div>
+                            <div class="score-bar">
+                                <div class="score-bar-fill" style="width:{{ resume.cgpa_score }}%; background:#2563eb;"></div>
+                            </div>
+                        </div>
+                        <!-- Experience -->
+                        <div class="mb-2">
+                            <div class="d-flex justify-content-between small mb-1">
+                                <span>Experience (15%)</span>
+                                <span class="fw-bold">{{ resume.experience_score }}%</span>
+                            </div>
+                            <div class="score-bar">
+                                <div class="score-bar-fill" style="width:{{ resume.experience_score }}%; background:#d97706;"></div>
+                            </div>
+                        </div>
+                        <!-- Education -->
+                        <div class="mb-2">
+                            <div class="d-flex justify-content-between small mb-1">
+                                <span>Education (10%)</span>
+                                <span class="fw-bold">{{ resume.education_score }}%</span>
+                            </div>
+                            <div class="score-bar">
+                                <div class="score-bar-fill" style="width:{{ resume.education_score }}%; background:#7c3aed;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <hr class="my-2">
+                    <div class="px-3 pb-3">
+                        <div class="d-flex justify-content-between small mb-1">
+                            <span>TF-IDF Similarity</span>
+                            <span class="fw-bold">{{ resume.tfidf_score }}%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Radar chart -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-spider me-2 text-primary"></i>Profile Radar</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="radarChart" height="220"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Details -->
+        <div class="col-lg-8">
+            <!-- Key Metrics -->
+            <div class="row mb-4">
+                <div class="col-6 col-md-3 mb-3">
+                    <div class="card text-center p-3">
+                        <div class="fw-bold fs-4 text-primary">{{ resume.cgpa if resume.cgpa > 0 else '—' }}</div>
+                        <div class="text-muted small">CGPA</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3 mb-3">
+                    <div class="card text-center p-3">
+                        <div class="fw-bold fs-4 text-warning">
+                            {{ resume.experience_years|round(1) if resume.experience_years > 0 else '0' }}
+                        </div>
+                        <div class="text-muted small">Years Exp.</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3 mb-3">
+                    <div class="card text-center p-3">
+                        <div class="fw-bold fs-4 text-success">{{ resume.skills_list|length }}</div>
+                        <div class="text-muted small">Skills Found</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3 mb-3">
+                    <div class="card text-center p-3">
+                        <div class="fw-bold fs-4 text-info">{{ resume.matched_list|length }}</div>
+                        <div class="text-muted small">Skills Matched</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Education -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-graduation-cap me-2 text-primary"></i>Education</h6>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm table-borderless mb-0">
+                        <tr><td class="text-muted" style="width:150px;">Highest Degree</td><td class="fw-semibold">{{ resume.highest_degree or 'Not detected' }}</td></tr>
+                        <tr><td class="text-muted">Degree Score</td><td>{{ resume.education_score }}/100</td></tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Matched Skills -->
+            <div class="card mb-4">
+                <div class="card-header bg-success text-white">
+                    <h6 class="mb-0"><i class="fas fa-check-double me-2"></i>Matched Skills ({{ resume.matched_list|length }}) - {{ resume.skill_coverage }}% coverage</h6>
+                </div>
+                <div class="card-body">
+                    {% if resume.matched_list %}
+                        {% for s in resume.matched_list %}
+                        <span class="skill-tag skill-matched"><i class="fas fa-check me-1"></i>{{ s }}</span>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted mb-0">No required skills matched. Check job description keywords.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- All Skills -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-code me-2 text-primary"></i>All Skills Detected ({{ resume.skills_list|length }})</h6>
+                </div>
+                <div class="card-body">
+                    {% if resume.skills_list %}
+                        {% for s in resume.skills_list %}
+                            {% if s in resume.matched_list %}
+                            <span class="skill-tag skill-matched">{{ s }}</span>
+                            {% else %}
+                            <span class="skill-tag skill-normal">{{ s }}</span>
+                            {% endif %}
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted mb-0">No recognizable skills found.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Resume Preview (Raw Text) -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-file-alt me-2 text-primary"></i>Extracted Text Preview</h6>
+                </div>
+                <div class="card-body">
+                    <pre style="white-space:pre-wrap; font-family:inherit; font-size:0.85rem; color:#4b5563; max-height:400px; overflow-y:auto; margin:0;">{{ resume.raw_text[:3000] }}{% if resume.raw_text|length > 3000 %}... [truncated]{% endif %}</pre>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('job_detail', job_id=job.id) }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>Back to Results
+                </a>
+                <button type="button" class="btn btn-outline-danger" 
+                        onclick="confirmDelete({{ resume.id }}, '{{ resume.candidate_name|replace("'","\\'") }}')">
+                    <i class="fas fa-trash me-1"></i>Delete Resume
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title"><i class="fas fa-trash me-2"></i>Delete Resume</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Remove resume for <strong id="delName"></strong>?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="delForm" method="POST"><button type="submit" class="btn btn-danger">Delete</button></form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function confirmDelete(id, name) {
+    document.getElementById('delName').textContent = name;
+    document.getElementById('delForm').action = '/job/{{ job.id }}/resume/' + id + '/delete';
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+
+// Radar chart
+const radarCtx = document.getElementById('radarChart').getContext('2d');
+new Chart(radarCtx, {
+    type: 'radar',
+    data: {
+        labels: ['Skills', 'CGPA', 'Experience', 'Education', 'Semantic Match'],
+        datasets: [{
+            label: 'Candidate Score',
+            data: [
+                {{ resume.skill_score }},
+                {{ resume.cgpa_score }},
+                {{ resume.experience_score }},
+                {{ resume.education_score }},
+                {{ resume.tfidf_score }}
+            ],
+            backgroundColor: 'rgba(37, 99, 235, 0.2)',
+            borderColor: '#2563eb',
+            borderWidth: 2,
+            pointBackgroundColor: '#2563eb',
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            r: { beginAtZero: true, max: 100, ticks: { stepSize: 25 } }
+        },
+        plugins: { legend: { display: false } }
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,396 @@
+{% extends "base.html" %}
+
+{% block title %}{{ job.title }} - Results{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Dashboard</a></li>
+            <li class="breadcrumb-item active">{{ job.title }}</li>
+        </ol>
+    </nav>
+
+    <!-- Job Header -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row align-items-center">
+                <div class="col-lg-8">
+                    <h3 class="mb-1">{{ job.title }}</h3>
+                    <p class="text-muted small mb-2">
+                        <i class="far fa-calendar me-1"></i>Created: {{ job.created_at }}
+                    </p>
+                    <p class="mb-0 text-secondary small" style="display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">
+                        {{ job.description }}
+                    </p>
+                </div>
+                <div class="col-lg-4 text-lg-end mt-3 mt-lg-0">
+                    <button class="btn btn-outline-primary btn-sm me-1" onclick="toggleEdit()">
+                        <i class="fas fa-edit me-1"></i>Edit JD
+                    </button>
+                    <button type="button" class="btn btn-outline-danger btn-sm" 
+                            onclick="confirmDeleteJob({{ job.id }}, '{{ job.title|replace("'","\\'") }}')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Job Form (hidden by default) -->
+    <div class="card mb-4" id="editJobForm" style="display:none;">
+        <div class="card-header"><h6 class="mb-0"><i class="fas fa-edit me-2"></i>Edit Job Description</h6></div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('update_job', job_id=job.id) }}">
+                <div class="mb-3">
+                    <label class="form-label">Job Title</label>
+                    <input type="text" class="form-control" name="title" value="{{ job.title }}" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Job Description</label>
+                    <textarea class="form-control" name="description" rows="6" required>{{ job.description }}</textarea>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Min CGPA</label>
+                        <input type="number" class="form-control" name="min_cgpa" step="0.1" value="{{ job.min_cgpa or '' }}">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Min Experience (years)</label>
+                        <input type="number" class="form-control" name="min_experience" value="{{ job.min_experience or '' }}">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Update &amp; Re-score</button>
+                <button type="button" class="btn btn-outline-secondary ms-2" onclick="toggleEdit()">Cancel</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Statistics Row -->
+    <div class="row mb-4">
+        <div class="col-6 col-lg-3 mb-3">
+            <div class="card stat-card primary p-3">
+                <div class="stat-value text-primary">{{ stats.total }}</div>
+                <div class="stat-label">Total Resumes</div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3 mb-3">
+            <div class="card stat-card success p-3">
+                <div class="stat-value text-success">{{ stats.shortlisted }}</div>
+                <div class="stat-label">Shortlisted (≥60%)</div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3 mb-3">
+            <div class="card stat-card danger p-3">
+                <div class="stat-value text-danger">{{ stats.rejected }}</div>
+                <div class="stat-label">Below Threshold</div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3 mb-3">
+            <div class="card stat-card warning p-3">
+                <div class="stat-value text-warning">{{ stats.avg_score }}%</div>
+                <div class="stat-label">Average Score</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Required Skills -->
+    {% if job.required_skills_list %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h6 class="mb-0"><i class="fas fa-tags me-2 text-primary"></i>Required Skills Detected ({{ job.required_skills_list|length }})</h6>
+        </div>
+        <div class="card-body">
+            {% for skill in job.required_skills_list %}
+            <span class="skill-tag skill-required">{{ skill }}</span>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Upload Section -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h6 class="mb-0"><i class="fas fa-cloud-upload-alt me-2 text-primary"></i>Upload Resumes</h6>
+            <span class="badge bg-secondary">PDF, DOCX, DOC, TXT supported</span>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('upload_resume', job_id=job.id) }}" enctype="multipart/form-data" id="uploadForm">
+                <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <h5>Drag &amp; drop resumes here or click to browse</h5>
+                    <p class="text-muted mb-0">Supports multiple files. Max 16MB per file.</p>
+                    <input type="file" id="fileInput" name="resumes" multiple accept=".pdf,.docx,.doc,.txt" 
+                           style="display:none;" onchange="updateFileList()">
+                </div>
+                <div id="fileList" class="mt-3"></div>
+                <div class="text-end mt-3">
+                    <button type="submit" class="btn btn-primary" id="uploadBtn" disabled>
+                        <i class="fas fa-upload me-2"></i>Process &amp; Score Resumes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Results Chart -->
+    {% if resumes and resumes|length > 1 %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h6 class="mb-0"><i class="fas fa-chart-bar me-2 text-primary"></i>Score Distribution</h6>
+        </div>
+        <div class="card-body">
+            <div class="chart-container">
+                <canvas id="scoreChart"></canvas>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Results Table -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h6 class="mb-0"><i class="fas fa-list-ol me-2 text-primary"></i>Ranked Candidates</h6>
+            {% if resumes %}
+            <form method="POST" action="{{ url_for('rescore_job', job_id=job.id) }}" class="d-inline">
+                <button type="submit" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-sync-alt me-1"></i>Re-score All
+                </button>
+            </form>
+            {% endif %}
+        </div>
+        <div class="card-body p-0">
+            {% if resumes %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th style="width:60px;">Rank</th>
+                            <th>Candidate</th>
+                            <th>Skills Match</th>
+                            <th>CGPA</th>
+                            <th>Experience</th>
+                            <th>Education</th>
+                            <th style="width:120px;">Score</th>
+                            <th style="width:80px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in resumes %}
+                        <tr class="resume-row">
+                            <td>
+                                <span class="rank-badge {% if r.rank == 1 %}rank-1{% elif r.rank == 2 %}rank-2{% elif r.rank == 3 %}rank-3{% else %}rank-other{% endif %}">
+                                    {{ r.rank }}
+                                </span>
+                            </td>
+                            <td>
+                                <a href="{{ url_for('view_resume', resume_id=r.id) }}" class="text-decoration-none fw-semibold text-dark">
+                                    {{ r.candidate_name }}
+                                </a>
+                                <br>
+                                <small class="text-muted">
+                                    {% if r.email %}<i class="fas fa-envelope me-1"></i>{{ r.email }}{% endif %}
+                                    {% if r.phone %}<span class="ms-2"><i class="fas fa-phone me-1"></i>{{ r.phone }}</span>{% endif %}
+                                </small>
+                                {% if r.highest_degree %}
+                                <br><small class="text-secondary"><i class="fas fa-graduation-cap me-1"></i>{{ r.highest_degree }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <span class="fw-semibold">{{ r.skill_score|round(0)|int }}%</span>
+                                    <div class="mini-bar">
+                                        <div class="mini-bar-fill" style="width:{{ r.skill_score }}%; 
+                                            background: {% if r.skill_score >= 70 %}#059669{% elif r.skill_score >= 50 %}#2563eb{% elif r.skill_score >= 30 %}#d97706{% else %}#dc2626{% endif %};">
+                                        </div>
+                                    </div>
+                                </div>
+                                <small class="text-muted">{{ r.matched_list|length }}/{{ r.skill_coverage|round(0)|int }}% skills matched</small>
+                                <div class="mt-1" style="max-width:200px;">
+                                    {% for s in r.matched_list[:5] %}
+                                    <span class="skill-tag skill-matched">{{ s }}</span>
+                                    {% endfor %}
+                                    {% if r.matched_list|length > 5 %}
+                                    <span class="small text-muted">+{{ r.matched_list|length - 5 }} more</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                {% if r.cgpa and r.cgpa > 0 %}
+                                <span class="fw-semibold">{{ r.cgpa }}</span><span class="text-muted">/10</span>
+                                {% else %}
+                                <span class="text-muted">N/A</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if r.experience_years > 0 %}
+                                <span class="fw-semibold">{{ r.experience_years|round(1) }} yrs</span>
+                                {% else %}
+                                <span class="text-muted">Fresher</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {{ r.highest_degree or 'N/A' }}
+                            </td>
+                            <td>
+                                <div class="fw-bold fs-5 {% if r.total_score >= 70 %}text-success{% elif r.total_score >= 50 %}text-primary{% elif r.total_score >= 35 %}text-warning{% else %}text-danger{% endif %}">
+                                    {{ r.total_score }}%
+                                </div>
+                                {% if r.total_score >= 60 %}
+                                <span class="badge bg-success badge-sm"><i class="fas fa-check me-1"></i>Shortlist</span>
+                                {% else %}
+                                <span class="badge bg-secondary badge-sm"><i class="fas fa-times me-1"></i>Below</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('view_resume', resume_id=r.id) }}" class="btn btn-outline-primary" title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <button type="button" class="btn btn-outline-danger" 
+                                            onclick="confirmDeleteResume({{ r.id }}, '{{ r.candidate_name|replace("'","\\'") }}')" title="Delete">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <i class="fas fa-file-alt"></i>
+                <h5>No resumes uploaded yet</h5>
+                <p>Upload resumes above to start the shortlisting process.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Delete Job Modal -->
+<div class="modal fade" id="deleteJobModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="fas fa-trash me-2"></i>Delete Job</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Delete <strong id="djTitle"></strong> and all its resumes?</p>
+                <p class="text-danger small mb-0"><i class="fas fa-warning me-1"></i>This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="djForm" method="POST"><button type="submit" class="btn btn-danger">Delete</button></form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Resume Modal -->
+<div class="modal fade" id="deleteResumeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title"><i class="fas fa-trash me-2"></i>Delete Resume</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Remove resume for <strong id="drName"></strong>?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="drForm" method="POST"><button type="submit" class="btn btn-danger">Delete</button></form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// File upload drag and drop
+const zone = document.getElementById('uploadZone');
+const input = document.getElementById('fileInput');
+const list = document.getElementById('fileList');
+const btn = document.getElementById('uploadBtn');
+
+['dragenter', 'dragover'].forEach(e => zone.addEventListener(e, ev => {
+    ev.preventDefault(); zone.classList.add('dragover');
+}));
+['dragleave', 'drop'].forEach(e => zone.addEventListener(e, ev => {
+    ev.preventDefault(); zone.classList.remove('dragover');
+}));
+zone.addEventListener('drop', ev => {
+    input.files = ev.dataTransfer.files;
+    updateFileList();
+});
+
+function updateFileList() {
+    list.innerHTML = '';
+    if (input.files.length > 0) {
+        btn.disabled = false;
+        Array.from(input.files).forEach(f => {
+            const size = (f.size / 1024).toFixed(1) + ' KB';
+            list.innerHTML += `<div class="file-list-item">
+                <div><i class="fas fa-file-alt me-2 text-primary"></i><strong>${f.name}</strong> <small class="text-muted">(${size})</small></div>
+                <i class="fas fa-check-circle text-success"></i>
+            </div>`;
+        });
+    } else {
+        btn.disabled = true;
+    }
+}
+
+function toggleEdit() {
+    const form = document.getElementById('editJobForm');
+    form.style.display = form.style.display === 'none' ? 'block' : 'none';
+}
+
+function confirmDeleteJob(id, title) {
+    document.getElementById('djTitle').textContent = title;
+    document.getElementById('djForm').action = '/job/' + id + '/delete';
+    new bootstrap.Modal(document.getElementById('deleteJobModal')).show();
+}
+
+function confirmDeleteResume(id, name) {
+    document.getElementById('drName').textContent = name;
+    document.getElementById('drForm').action = window.location.pathname + '/resume/' + id + '/delete';
+    new bootstrap.Modal(document.getElementById('deleteResumeModal')).show();
+}
+
+{% if resumes and resumes|length > 1 %}
+// Score distribution chart
+const ctx = document.getElementById('scoreChart').getContext('2d');
+new Chart(ctx, {
+    type: 'bar',
+    data: {
+        labels: [{% for r in resumes %}'{{ r.candidate_name[:15] }}'{% if not loop.last %},{% endif %}{% endfor %}],
+        datasets: [{
+            label: 'Total Score (%)',
+            data: [{% for r in resumes %}{{ r.total_score }}{% if not loop.last %},{% endif %}{% endfor %}],
+            backgroundColor: [{% for r in resumes %}
+                {% if r.total_score >= 70 %}'#059669'{% elif r.total_score >= 50 %}'#2563eb'{% elif r.total_score >= 35 %}'#d97706'{% else %}'#dc2626'{% endif %}{% if not loop.last %},{% endif %}
+            {% endfor %}],
+            borderRadius: 6,
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: ctx => ctx.parsed.y + '% match' } }
+        },
+        scales: {
+            y: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%' } },
+            x: { ticks: { maxRotation: 45, minRotation: 45, font: { size: 11 } } }
+        }
+    }
+});
+{% endif %}
+</script>
+{% endblock %}
